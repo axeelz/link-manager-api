@@ -1,0 +1,8 @@
+services:
+  server:
+    ports:
+      - "127.0.0.1:3500:3500"
+    image: "axlz/link-manager-api"
+    env_file:
+      - .env
+    platform: linux/amd64

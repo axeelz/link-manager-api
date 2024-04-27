@@ -1,0 +1,27 @@
+{
+  "version": "5",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1712256169249,
+      "tag": "0000_clear_the_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1713185407127,
+      "tag": "0001_crazy_night_nurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1713383605861,
+      "tag": "0002_plain_the_spike",
+      "breakpoints": true
+    }
+  ]
+}
