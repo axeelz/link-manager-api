@@ -43,6 +43,5 @@ jobs:
           script: |
             docker pull axlz/link-manager-api
             cd link-manager-api
-            touch .env
             echo "${{ secrets.ENV_FILE }}" > .env
             docker compose up -d --build --force-recreate
