@@ -11,6 +11,7 @@ import { insertRedirect } from "./functions/redirects";
 import { redirectsRoutes } from "./routes/redirects";
 import bearer from "@elysiajs/bearer";
 import { demoRoutes } from "./routes/demo";
+import { NOT_FOUND_PAGE, PERSONAL_WEBSITE } from "./utils/constants";
 
 const app = new Elysia()
   .use(cors())
@@ -48,7 +49,7 @@ const app = new Elysia()
   // Health check
   .get("/ping", () => "pong")
   // Homepage redirects to personal website
-  .get("/", ({ set }) => (set.redirect = "https://axeelz.com"))
+  .get("/", ({ set }) => (set.redirect = PERSONAL_WEBSITE))
   // Link redirection, where all the magic happens
   .get(
     "/:code",
@@ -56,7 +57,7 @@ const app = new Elysia()
       const link = await getLink(params.code);
 
       if (!link) {
-        set.redirect = `http://dash.axlz.me/no-link?code=${params.code}`;
+        set.redirect = `${NOT_FOUND_PAGE}?code=${params.code}`;
       } else {
         set.status = 301;
         set.redirect = link.url;
