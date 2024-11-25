@@ -38,7 +38,7 @@ const app = new Elysia()
     }
   })
   // Logging
-  .onAfterResponse(({ path, request }) => {
+  .onBeforeHandle(({ path, request }) => {
     console.log(`🦊 ${request.method} - ${path}`);
   })
   // Mesure request performance
