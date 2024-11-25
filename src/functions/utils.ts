@@ -1,3 +1,4 @@
+import { isbot } from "isbot";
 import { customAlphabet } from "nanoid";
 
 export function isValidUrl(url: string): boolean {
@@ -34,4 +35,11 @@ export function getIPLocation(ip: any): Promise<{ city: string; regionName: stri
       console.error(error);
       return null;
     });
+}
+
+export function isPotentialBot(userAgent: string | undefined): boolean {
+  if (!userAgent || userAgent.startsWith("Bun/")) {
+    return false;
+  }
+  return isbot(userAgent);
 }

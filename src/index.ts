@@ -6,13 +6,12 @@ import { cors } from "@elysiajs/cors";
 import { helmet } from "elysia-helmet";
 import { ip } from "elysia-ip";
 import { UAParser } from "ua-parser-js";
-import { getIPLocation } from "./functions/utils";
+import { getIPLocation, isPotentialBot } from "./functions/utils";
 import { insertRedirect } from "./functions/redirects";
 import { redirectsRoutes } from "./routes/redirects";
 import bearer from "@elysiajs/bearer";
 import { demoRoutes } from "./routes/demo";
 import { NOT_FOUND_PAGE, PERSONAL_WEBSITE } from "./utils/constants";
-import { isbot } from "isbot";
 
 const app = new Elysia()
   .use(cors())
@@ -74,11 +73,12 @@ const app = new Elysia()
       // Save analytics data after redirection, for performance reasons
       async afterResponse({ params, ip, headers }) {
         const link = await getLink(params.code);
-        if (!link || isbot(headers["user-agent"])) {
+        const userAgent = headers["user-agent"];
+        if (!link || isPotentialBot(userAgent)) {
           return;
         }
 
-        const parserResult = new UAParser(headers["user-agent"]).getResult();
+        const parserResult = new UAParser(userAgent).getResult();
         const lang = headers["accept-language"]?.split(",")[0];
         const loc = await getIPLocation(ip);
         await insertRedirect({
