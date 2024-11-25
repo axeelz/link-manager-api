@@ -1,10 +1,10 @@
 {
-  "name": "app",
-  "version": "1.0.50",
+  "name": "link-manager-api",
+  "version": "2.0.0",
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "build": "bun build src/index.ts",
-    "start": "NODE_ENV=production bun src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir ./dist",
+    "start": "NODE_ENV=production bun dist/index.js",
     "test": "bun test"
   },
   "dependencies": {
@@ -16,9 +16,10 @@
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.30.6",
     "drizzle-typebox": "^0.1.1",
-    "elysia": "latest",
+    "elysia": "^1.1.25",
     "elysia-helmet": "^1.0.2",
-    "elysia-ip": "^1.0.3",
+    "elysia-ip": "^1.0.7",
+    "isbot": "^5.1.17",
     "nanoid": "^5.0.6",
     "ua-parser-js": "^1.0.37"
   },

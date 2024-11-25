@@ -7,8 +7,9 @@ import {
   deleteLink,
   deleteAllLinks,
   editLink,
+  validateCode,
 } from "../functions/links";
-import { generateCode, isValidUrl } from "../functions/utils";
+import { isValidUrl } from "../functions/utils";
 
 export const linksRoutes = new Elysia({ prefix: "/links" })
   // Get all short links
@@ -23,12 +24,8 @@ export const linksRoutes = new Elysia({ prefix: "/links" })
         set.status = 400;
         return { status: 400, message: "Invalid URL" };
       }
-      if (!body.code || body.code.includes("/")) {
-        do {
-          body.code = generateCode();
-        } while (await codeAlreadyUsed(body.code));
-      }
-      const insertedLink = await insertLink(body as { code: string; url: string });
+      const finalCode = await validateCode(body.code);
+      const insertedLink = await insertLink({ code: finalCode, url: body.url });
       set.status = 201;
       return insertedLink;
     },
@@ -50,7 +47,8 @@ export const linksRoutes = new Elysia({ prefix: "/links" })
         set.status = 400;
         return { status: 400, message: "Invalid URL" };
       }
-      const updatedLink = await editLink(params.code, body as { code: string; url: string });
+      const finalCode = await validateCode(body.code);
+      const updatedLink = await editLink(params.code, { code: finalCode, url: body.url });
       set.status = 200;
       return updatedLink;
     },

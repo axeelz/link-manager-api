@@ -12,6 +12,7 @@ import { redirectsRoutes } from "./routes/redirects";
 import bearer from "@elysiajs/bearer";
 import { demoRoutes } from "./routes/demo";
 import { NOT_FOUND_PAGE, PERSONAL_WEBSITE } from "./utils/constants";
+import { isbot } from "isbot";
 
 const app = new Elysia()
   .use(cors())
@@ -38,29 +39,32 @@ const app = new Elysia()
     }
   })
   // Logging
-  .onResponse(({ path, request }) => {
+  .onAfterResponse(({ path, request }) => {
     console.log(`🦊 ${request.method} - ${path}`);
   })
   // Mesure request performance
-  .trace(async ({ handle }) => {
-    const { time, end } = await handle;
-    console.log("⏳ it took", (await end) - time, "ms");
+  .trace(async ({ onHandle }) => {
+    onHandle(({ begin, onStop }) => {
+      onStop(({ end }) => {
+        console.log("⏳ it took", end - begin, "ms");
+      });
+    });
   })
   // Health check
   .get("/ping", () => "pong")
   // Homepage redirects to personal website
-  .get("/", ({ set }) => (set.redirect = PERSONAL_WEBSITE))
+  .get("/", ({ redirect }) => redirect(PERSONAL_WEBSITE))
   // Link redirection, where all the magic happens
   .get(
     "/:code",
-    async ({ params, set }) => {
+    async ({ params, set, redirect }) => {
       const link = await getLink(params.code);
 
       if (!link) {
-        set.redirect = `${NOT_FOUND_PAGE}?code=${params.code}`;
+        return redirect(`${NOT_FOUND_PAGE}?code=${params.code}`);
       } else {
         set.status = 301;
-        set.redirect = link.url;
+        return redirect(link.url);
       }
     },
     {
@@ -68,13 +72,13 @@ const app = new Elysia()
         code: t.String(),
       }),
       // Save analytics data after redirection, for performance reasons
-      async onResponse({ params, ip, headers }) {
+      async afterResponse({ params, ip, headers }) {
         const link = await getLink(params.code);
-        if (!link) {
+        if (!link || isbot(headers["user-agent"])) {
           return;
         }
 
-        const parser = new UAParser(headers["user-agent"]);
+        const parserResult = new UAParser(headers["user-agent"]).getResult();
         const lang = headers["accept-language"]?.split(",")[0];
         const loc = await getIPLocation(ip);
         await insertRedirect({
@@ -82,7 +86,7 @@ const app = new Elysia()
           location: loc ? JSON.stringify(loc) : null,
           language: lang,
           referrer: headers["referer"],
-          userAgent: JSON.stringify(parser.getResult()),
+          userAgent: JSON.stringify(parserResult),
         });
         await incrementRedirects(params.code);
       },
