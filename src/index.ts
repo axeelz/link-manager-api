@@ -34,6 +34,7 @@ const app = new Elysia()
         set.status = 401;
         return { status: 401, message: error.message };
       default:
+        console.error(error);
         return { status: 500, message: error.message };
     }
   })
