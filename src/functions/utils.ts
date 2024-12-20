@@ -41,5 +41,8 @@ export function isPotentialBot(userAgent: string | undefined): boolean {
   if (!userAgent || userAgent.startsWith("Bun/")) {
     return false;
   }
+  if (userAgent === "") {
+    return true;
+  }
   return isbot(userAgent);
 }
