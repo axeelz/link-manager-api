@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  DEPLOY_PATH: /home/${{ secrets.USERNAME }}/projects/link-manager-api
+
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
@@ -24,24 +27,23 @@ jobs:
           docker push axlz/link-manager-api
 
       - name: Send compose.yml to VPS
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
           source: "compose.yml"
-          target: "/home/${{ secrets.USERNAME }}/link-manager-api"
+          target: ${{ env.DEPLOY_PATH }}
 
       - name: Deploy to VPS
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
           script: |
-            docker pull axlz/link-manager-api
-            cd link-manager-api
+            cd ${{ env.DEPLOY_PATH }}
             echo "${{ secrets.ENV_FILE }}" > .env
-            docker compose up -d --build --force-recreate
+            docker compose up -d --pull always --force-recreate
