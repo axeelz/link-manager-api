@@ -1,10 +1,5 @@
-export class SQLITE_CONSTRAINT extends Error {
-  constructor(public message: string) {
-    super(message);
-  }
-}
-
 export class UNAUTHORIZED extends Error {
+  status = 401;
   constructor(public message: string) {
     super(message);
   }

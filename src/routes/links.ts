@@ -1,93 +1,59 @@
-import Elysia, { NotFoundError, t } from "elysia";
-import {
-  getAllLinks,
-  insertLink,
-  codeAlreadyUsed,
-  getLinkStats,
-  deleteLink,
-  deleteAllLinks,
-  editLink,
-  validateCode,
-} from "../functions/links";
-import { isValidUrl } from "../functions/utils";
+import { Elysia, NotFoundError } from "elysia";
+
+import * as links from "../functions/links";
+import { LinkModel } from "../models";
+
+// Type guard for SQLite constraint errors from libSQL/Drizzle
+const isSQLiteConstraintError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  if (!("cause" in error)) return false;
+  const cause = error.cause;
+  if (!cause || typeof cause !== "object") return false;
+  return "code" in cause && cause.code === "SQLITE_CONSTRAINT";
+};
 
 export const linksRoutes = new Elysia({ prefix: "/links" })
+  .onError(({ error, status }) => {
+    if (isSQLiteConstraintError(error)) {
+      return status(409, "Code already in use");
+    }
+  })
   // Get all short links
-  .get("/", () => getAllLinks())
+  .get("", () => links.getAllLinks())
   // Get short link stats
-  .get("/stats", () => getLinkStats())
+  .get("/stats", () => links.getLinkStats())
   // Create a new short link
   .post(
-    "/",
-    async ({ body, set }) => {
-      if (!isValidUrl(body.url)) {
-        set.status = 400;
-        return { status: 400, message: "Invalid URL" };
-      }
-      const finalCode = await validateCode(body.code);
-      const insertedLink = await insertLink({ code: finalCode, url: body.url });
-      set.status = 201;
-      return insertedLink;
+    "",
+    async ({ body, status }) => {
+      const result = await links.insertLink({
+        code: await links.validateCode(body.code),
+        url: body.url,
+      });
+
+      return status(201, result);
     },
-    {
-      body: t.Object({
-        code: t.Optional(t.String({ maxLength: 10 })),
-        url: t.String(),
-      }),
-    }
+    { body: LinkModel.create },
   )
   // Update a short link
   .put(
     "/:code",
-    async ({ params, body, set }) => {
-      if (!(await codeAlreadyUsed(params.code))) {
-        throw new NotFoundError();
-      }
-      if (!isValidUrl(body.url)) {
-        set.status = 400;
-        return { status: 400, message: "Invalid URL" };
-      }
-      const finalCode = await validateCode(body.code);
-      const updatedLink = await editLink(params.code, { code: finalCode, url: body.url });
-      set.status = 200;
-      return updatedLink;
+    async ({ params, body }) => {
+      if (!(await links.codeAlreadyUsed(params.code))) throw new NotFoundError();
+      return links.editLink(params.code, {
+        code: await links.validateCode(body.code),
+        url: body.url,
+      });
     },
-    {
-      params: t.Object({
-        code: t.String(),
-      }),
-      body: t.Object({
-        code: t.Optional(t.String({ maxLength: 10 })),
-        url: t.String(),
-      }),
-    }
+    { params: LinkModel.params, body: LinkModel.update },
   )
   // Delete a short link
   .delete(
     "/:code",
-    async ({ params, set }) => {
-      if (!(await codeAlreadyUsed(params.code))) {
-        throw new NotFoundError();
-      }
-      await deleteLink(params.code);
-      set.status = 204;
-      return {
-        status: 204,
-        message: "Link deleted",
-      };
+    async ({ params, status }) => {
+      if (!(await links.codeAlreadyUsed(params.code))) throw new NotFoundError();
+      await links.deleteLink(params.code);
+      return status(204, "Deleted");
     },
-    {
-      params: t.Object({
-        code: t.String(),
-      }),
-    }
-  )
-  // Delete all short links
-  .delete("/", async ({ set }) => {
-    await deleteAllLinks();
-    set.status = 204;
-    return {
-      status: 204,
-      message: "All links deleted",
-    };
-  });
+    { params: LinkModel.params },
+  );

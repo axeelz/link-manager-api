@@ -1,86 +1,97 @@
 import { describe, expect, it } from "bun:test";
-import type { App } from "../src";
-import { edenFetch, treaty } from "@elysiajs/eden";
 
-const API_URL = process.env.API_URL as string;
-
-const api = treaty<App>(API_URL);
-const fetch = edenFetch<App>(API_URL);
+import { app } from "./setup";
 
 describe("Elysia", () => {
   it("return a response", async () => {
-    const { data, status } = await api.ping.get();
+    const response = await app.handle(new Request("http://localhost/ping"));
 
+    expect(response.status).toBe(200);
+    const data = await response.text();
     expect(data).toBe("pong");
-    expect(status).toBe(200);
   });
 
-  it("return a 404", async () => {
-    const { status } = await fetch("/:code", { method: "GET", params: { code: "not/found" } });
+  it("return a 404 for invalid code", async () => {
+    const response = await app.handle(new Request("http://localhost/notfound"));
 
-    expect(status).toBe(404);
+    expect(response.status).toBe(302);
+    const location = response.headers.get("location");
+    expect(location).toContain("no-link");
   });
 });
 
 describe("Protected routes", () => {
   it("with invalid token", async () => {
-    const { status } = await api.links.index.get({
-      headers: {
-        Authorization: "Bearer invalid",
-      },
-    });
+    const response = await app.handle(
+      new Request("http://localhost/links", {
+        headers: {
+          Authorization: "Bearer invalid",
+        },
+      }),
+    );
 
-    expect(status).toBe(401);
+    expect(response.status).toBe(401);
   });
 
-  it("get all short links", async () => {
-    const { status } = await api.links.index.get();
+  it("get all short links without auth", async () => {
+    const response = await app.handle(new Request("http://localhost/links"));
 
-    expect(status).toBe(401);
+    expect(response.status).toBe(401);
   });
 
-  it("get short link stats", async () => {
-    const { status } = await api.links.stats.get();
+  it("get short link stats without auth", async () => {
+    const response = await app.handle(new Request("http://localhost/links/stats"));
 
-    expect(status).toBe(401);
+    expect(response.status).toBe(401);
   });
 
-  it("create a new short link", async () => {
-    const { status } = await api.links.index.post({
-      code: "test",
-      url: "https://elysia.dev",
-    });
+  it("create a new short link without auth", async () => {
+    const response = await app.handle(
+      new Request("http://localhost/links", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: "test",
+          url: "https://elysia.dev",
+        }),
+      }),
+    );
 
-    expect(status).toBe(401);
+    expect(response.status).toBe(401);
   });
 
-  it("update a short link", async () => {
-    const { status } = await api.links({ code: "test" }).put({
-      code: "test2",
-      url: "https://www.example.com",
-    });
+  it("update a short link without auth", async () => {
+    const response = await app.handle(
+      new Request("http://localhost/links/test", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: "test2",
+          url: "https://www.example.com",
+        }),
+      }),
+    );
 
-    expect(status).toBe(401);
+    expect(response.status).toBe(401);
   });
 
-  it("delete a short link", async () => {
-    const { status } = await fetch("/links/:code", {
-      method: "DELETE",
-      params: { code: "test" },
-    });
+  it("delete a short link without auth", async () => {
+    const response = await app.handle(
+      new Request("http://localhost/links/test", {
+        method: "DELETE",
+      }),
+    );
 
-    expect(status).toBe(401);
+    expect(response.status).toBe(401);
   });
 
-  it("delete all short links", async () => {
-    const { status } = await api.links.index.delete();
+  it("get all redirects without auth", async () => {
+    const response = await app.handle(new Request("http://localhost/redirects"));
 
-    expect(status).toBe(401);
-  });
-
-  it("get all redirects", async () => {
-    const { status } = await api.redirects.index.get();
-
-    expect(status).toBe(401);
+    expect(response.status).toBe(401);
   });
 });

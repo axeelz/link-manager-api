@@ -1,0 +1,11 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:3500:3500"
+    env_file:
+      - .env
+    platform: linux/amd64
+    restart: unless-stopped

@@ -1,20 +1,13 @@
 import { isbot } from "isbot";
 import { customAlphabet } from "nanoid";
 
-export function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function generateCode(): string {
   return customAlphabet("abcdefghijklmnopqrstuvwxyz", 4)();
 }
 
-export function getIPLocation(ip: any): Promise<{ city: string; regionName: string; country: string } | null> {
+export function getIPLocation(
+  ip: any,
+): Promise<{ city: string; regionName: string; country: string } | null> {
   if (!ip) {
     return Promise.resolve(null);
   }
@@ -37,12 +30,20 @@ export function getIPLocation(ip: any): Promise<{ city: string; regionName: stri
     });
 }
 
+const BANNED_USER_AGENTS = ["Snapchat"] as const;
+
 export function isPotentialBot(userAgent: string | undefined): boolean {
   if (!userAgent || userAgent.startsWith("Bun/")) {
     return false;
   }
+
   if (userAgent === "") {
     return true;
   }
+
+  if (BANNED_USER_AGENTS.some((banned) => userAgent.includes(banned))) {
+    return true;
+  }
+
   return isbot(userAgent);
 }

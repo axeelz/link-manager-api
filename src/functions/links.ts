@@ -1,4 +1,5 @@
 import { count, desc, eq, sql, sum } from "drizzle-orm";
+
 import { db } from "../db/db";
 import { InsertLink, SelectLink, linksTable } from "../db/schema";
 import { generateCode } from "./utils";
@@ -55,6 +56,8 @@ export async function getAllLinks(): Promise<SelectLink[]> {
 export async function getLinkStats(): Promise<{ totalLinks: number; totalRedirects: number }> {
   const totalLinks = await db.select({ count: count() }).from(linksTable);
   if (totalLinks[0].count === 0) return { totalLinks: 0, totalRedirects: 0 };
-  const totalRedirects = await db.select({ sum: sum(linksTable.redirects).mapWith(Number) }).from(linksTable);
+  const totalRedirects = await db
+    .select({ sum: sum(linksTable.redirects).mapWith(Number) })
+    .from(linksTable);
   return { totalLinks: totalLinks[0].count, totalRedirects: totalRedirects[0].sum };
 }
