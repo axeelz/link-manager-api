@@ -18,7 +18,6 @@ export const createApp = () =>
     .use(cors())
     .use(helmet())
     .use(ip({ headersOnly: true }))
-
     // Logging & performance
     .onBeforeHandle(({ path, request }) => console.log(`🦊 ${request.method} - ${path}`))
     .trace(async ({ onHandle }) => {
@@ -42,15 +41,14 @@ export const createApp = () =>
         async afterResponse({ params, ip, headers }) {
           const link = await links.getLink(params.code);
           const userAgent = headers["user-agent"];
-          if (!link || isPotentialBot(userAgent)) return;
+          if (!link || isPotentialBot(userAgent) || !headers["accept-language"]) return;
           await insertRedirect({
             linkId: link.id,
             location: JSON.stringify(await getIPLocation(ip)) ?? null,
-            language: headers["accept-language"]?.split(",")[0],
+            language: headers["accept-language"].split(",")[0],
             referrer: headers["referer"],
             userAgent: JSON.stringify(new UAParser(userAgent).getResult()),
           });
-          await links.incrementRedirects(params.code);
         },
       },
     )

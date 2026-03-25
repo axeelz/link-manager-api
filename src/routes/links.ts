@@ -1,4 +1,4 @@
-import { Elysia, NotFoundError } from "elysia";
+import { Elysia } from "elysia";
 
 import * as links from "../functions/links";
 import { LinkModel } from "../models";
@@ -15,7 +15,7 @@ const isSQLiteConstraintError = (error: unknown): boolean => {
 export const linksRoutes = new Elysia({ prefix: "/links" })
   .onError(({ error, status }) => {
     if (isSQLiteConstraintError(error)) {
-      return status(409, "Code already in use");
+      return status(409, { message: "Code already in use" });
     }
   })
   // Get all short links
@@ -38,12 +38,13 @@ export const linksRoutes = new Elysia({ prefix: "/links" })
   // Update a short link
   .put(
     "/:code",
-    async ({ params, body }) => {
-      if (!(await links.codeAlreadyUsed(params.code))) throw new NotFoundError();
-      return links.editLink(params.code, {
+    async ({ params, body, status }) => {
+      const result = await links.editLink(params.code, {
         code: await links.validateCode(body.code),
         url: body.url,
       });
+      if (result.length === 0) return status(404);
+      return result;
     },
     { params: LinkModel.params, body: LinkModel.update },
   )
@@ -51,9 +52,9 @@ export const linksRoutes = new Elysia({ prefix: "/links" })
   .delete(
     "/:code",
     async ({ params, status }) => {
-      if (!(await links.codeAlreadyUsed(params.code))) throw new NotFoundError();
-      await links.deleteLink(params.code);
-      return status(204, "Deleted");
+      const deleted = await links.deleteLink(params.code);
+      if (!deleted) return status(404);
+      return status(204);
     },
     { params: LinkModel.params },
   );

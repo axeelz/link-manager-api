@@ -5,7 +5,6 @@ export const linksTable = sqliteTable("links", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   code: text("code").unique().notNull(),
   url: text("url").notNull(),
-  redirects: integer("redirects").default(0),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

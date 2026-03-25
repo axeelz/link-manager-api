@@ -6,7 +6,7 @@ export function generateCode(): string {
 }
 
 export function getIPLocation(
-  ip: any,
+  ip: string | undefined,
 ): Promise<{ city: string; regionName: string; country: string } | null> {
   if (!ip) {
     return Promise.resolve(null);
@@ -30,16 +30,13 @@ export function getIPLocation(
     });
 }
 
-const BANNED_USER_AGENTS = ["Snapchat"] as const;
+// "Chrome/130" + "Mac OS X 10_15_7" = frozen VM fingerprint used by link health checkers
+const BANNED_USER_AGENTS = ["Snapchat", "WOW64", "Chrome/130"] as const;
 
 export function isPotentialBot(userAgent: string | undefined): boolean {
-  if (!userAgent || userAgent.startsWith("Bun/")) {
-    return false;
-  }
-
-  if (userAgent === "") {
-    return true;
-  }
+  if (userAgent === undefined) return false;
+  if (!userAgent) return true;
+  if (userAgent.startsWith("Bun/")) return false;
 
   if (BANNED_USER_AGENTS.some((banned) => userAgent.includes(banned))) {
     return true;

@@ -22,6 +22,13 @@
       "when": 1713383605861,
       "tag": "0002_plain_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1774441754128,
+      "tag": "0003_smooth_mac_gargan",
+      "breakpoints": true
     }
   ]
 }

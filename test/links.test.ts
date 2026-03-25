@@ -1,282 +1,118 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 
-import { SelectLink } from "../src/db/schema";
-import { app, authHeaders } from "./setup";
+import { api } from "./setup";
 
 describe("Link creation", () => {
-  const random10CharString = Math.random().toString(36).substring(2, 12);
+  const code = Math.random().toString(36).substring(2, 12);
+
+  afterAll(async () => {
+    await api.links({ code }).delete();
+  });
 
   it("code too long", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: "codeThatIsWayTooLong",
-          url: "https://valid.url",
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(422);
+    const { error } = await api.links.post({
+      code: "codeThatIsWayTooLong",
+      url: "https://valid.url",
+    });
+    expect(error?.status).toBe(422);
   });
 
   it("invalid URL", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: "validCode",
-          url: "invalidUrl",
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(422);
+    const { error } = await api.links.post({ code: "validCode", url: "invalidUrl" });
+    expect(error?.status).toBe(422);
   });
 
   it("no URL specified", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code: "validCode" }),
-      }),
-    );
-
-    expect(response.status).toBe(422);
+    // @ts-expect-error — testing missing required field
+    const { error } = await api.links.post({ code: "validCode" });
+    expect(error?.status).toBe(422);
   });
 
   it("create valid link", async () => {
-    const urlToInsert = "https://valid.url";
-
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: random10CharString,
-          url: urlToInsert,
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(201);
-    const data = (await response.json()) as SelectLink[];
-    expect(data).toBeArray();
-
-    if (!data) throw new Error("No data returned");
-    const insertedLink = data[0] as SelectLink;
-    expect(insertedLink.code).toBe(random10CharString);
-    expect(insertedLink.url).toBe(urlToInsert);
-    expect(insertedLink.redirects).toBe(0);
-    expect(insertedLink.createdAt).toBeDefined();
-    expect(insertedLink.id).toBeNumber();
+    const { data, error } = await api.links.post({ code, url: "https://valid.url" });
+    expect(error).toBeNull();
+    expect(data?.[0].code).toBe(code);
+    expect(data?.[0].url).toBe("https://valid.url");
+    expect(data?.[0].id).toBeNumber();
   });
 
   it("code already in use", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: random10CharString,
-          url: "https://valid.url",
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(409);
+    const { error } = await api.links.post({ code, url: "https://valid.url" });
+    expect(error?.status).toBe(409);
   });
 
   it("delete created link", async () => {
-    const response = await app.handle(
-      new Request(`http://localhost/links/${random10CharString}`, {
-        method: "DELETE",
-        headers: authHeaders,
-      }),
-    );
-
-    expect(response.status).toBe(204);
+    const { error } = await api.links({ code }).delete();
+    expect(error).toBeNull();
   });
 
   it("if no code, generate 4 char. random one", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: "https://testing.url/" }),
-      }),
-    );
+    // @ts-expect-error — testing missing required field
+    const { data, error } = await api.links.post({ url: "https://testing.url/" });
+    expect(error).toBeNull();
+    expect(data?.[0].code).toHaveLength(4);
 
-    expect(response.status).toBe(201);
-    const data = (await response.json()) as SelectLink[];
-    expect(data).toBeArray();
-
-    const insertedLink = data[0];
-    expect(insertedLink.code).toHaveLength(4);
-
-    // Cleanup
-    const deleteResponse = await app.handle(
-      new Request(`http://localhost/links/${insertedLink.code}`, {
-        method: "DELETE",
-        headers: authHeaders,
-      }),
-    );
-
-    expect(deleteResponse.status).toBe(204);
+    await api.links({ code: data![0].code }).delete();
   });
 });
 
 describe("Link edition", () => {
-  it("link doesn't exist", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links/notfound", {
-        method: "PUT",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: "validCode",
-          url: "https://valid.url",
-        }),
-      }),
-    );
+  const code = Math.random().toString(36).substring(2, 12);
 
-    expect(response.status).toBe(404);
+  afterAll(async () => {
+    await api.links({ code: "validCode" }).delete();
   });
 
-  const random10CharString = Math.random().toString(36).substring(2, 12);
-  const urlToInsert = "https://valid.url";
+  it("link doesn't exist", async () => {
+    const { status } = await api
+      .links({ code: "notfound" })
+      .put({ code: "validCode", url: "https://valid.url" });
+    expect(status).toBe(404);
+  });
 
   it("create link to edit", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: random10CharString,
-          url: urlToInsert,
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(201);
-    const data = (await response.json()) as SelectLink[];
-    expect(data).toBeArray();
-
-    if (!data) throw new Error("No data returned");
-    const insertedLink = data[0] as SelectLink;
-    expect(insertedLink.code).toBe(random10CharString);
-    expect(insertedLink.url).toBe(urlToInsert);
+    const { data, error } = await api.links.post({ code, url: "https://valid.url" });
+    expect(error).toBeNull();
+    expect(data?.[0].code).toBe(code);
   });
 
   it("edit it with invalid URL", async () => {
-    const response = await app.handle(
-      new Request(`http://localhost/links/${random10CharString}`, {
-        method: "PUT",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: "validCode",
-          url: "invalidUrl",
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(422);
+    const { error } = await api.links({ code }).put({ code: "validCode", url: "invalidUrl" });
+    expect(error?.status).toBe(422);
   });
 
-  const updatedUrl = "https://new.url";
-
   it("edit it with valid URL", async () => {
-    const response = await app.handle(
-      new Request(`http://localhost/links/${random10CharString}`, {
-        method: "PUT",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: "validCode",
-          url: updatedUrl,
-        }),
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    const data = (await response.json()) as SelectLink[];
-    expect(data).toBeArray();
-
-    if (!data) throw new Error("No data returned");
-    const updatedLink = data[0] as SelectLink;
-    expect(updatedLink.url).toBe(updatedUrl);
-    expect(updatedLink.code).toBe("validCode");
+    const { data, error } = await api
+      .links({ code })
+      .put({ code: "validCode", url: "https://new.url" });
+    expect(error).toBeNull();
+    expect(data?.[0].url).toBe("https://new.url");
+    expect(data?.[0].code).toBe("validCode");
   });
 
   it("delete edited link", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links/validCode", {
-        method: "DELETE",
-        headers: authHeaders,
-      }),
-    );
+    const { error } = await api.links({ code: "validCode" }).delete();
+    expect(error).toBeNull();
+  });
 
-    expect(response.status).toBe(204);
+  it("delete non-existent link", async () => {
+    const { status } = await api.links({ code: "notfound" }).delete();
+    expect(status).toBe(404);
   });
 });
 
 describe("Getters", () => {
   it("get stats", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links/stats", {
-        headers: authHeaders,
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    const data = (await response.json()) as { totalLinks: number; totalRedirects: number };
-    expect(data).toBeObject();
-
-    if (!data) throw new Error("No data returned");
-    expect(data.totalLinks).toBeNumber();
-    expect(data.totalRedirects).toBeNumber();
+    const { data, error } = await api.links.stats.get();
+    expect(error).toBeNull();
+    expect(data?.totalLinks).toBeNumber();
+    expect(data?.totalRedirects).toBeNumber();
   });
 
   it("get all links", async () => {
-    const response = await app.handle(
-      new Request("http://localhost/links", {
-        headers: authHeaders,
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    const data = await response.json();
+    const { data, error } = await api.links.get();
+    expect(error).toBeNull();
     expect(data).toBeArray();
+    expect(data?.[0].redirects).toBeNumber();
   });
 });
